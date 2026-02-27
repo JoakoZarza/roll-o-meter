@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Roll-O-Meter | El Calculador Definitivo</title>
+
+    <!-- PWA & Mobile Optimization -->
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Roll-O-Meter">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3505/3505452.png">
+
+    <!-- Inlined Web App Manifest -->
+    <link rel="manifest"
+        href='data:application/json,{"name":"Roll-O-Meter","short_name":"RollO","start_url":".","display":"standalone","background_color":"#020617","theme_color":"#10b981","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3505/3505452.png","sizes":"512x512","type":"image/png"}]}'>
+
+
+    <!-- SEO -->
+    <meta name="description"
+        content="Calculadora de papel higiénico inteligente. Compara marcas por precio y rendimiento real.">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#020617',
+                            card: '#0f172a',
+                            accent: '#10b981',
+                            secondary: '#334155'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { boxShadow: '0 0 5px rgba(16, 185, 129, 0.2)' },
+                            '100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.6)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW listo!'))
+                    .catch(err => console.log('SW falló', err));
+            });
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+
+        /* Smooth scrolling for the list */
+        .comparison-list {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+        }
+
+        .active-quality {
+            background-color: #10b981 !important;
+            color: white !important;
+            transform: scale(1.05);
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Collapsible State */
+        .input-panel {
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .panel-collapsed {
+            transform: translateY(calc(100% - 60px));
+        }
+
+        /* Custom horizontal selector styling */
+        .option-pill {
+            flex: 0 0 auto;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: #1e293b;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .option-pill.active {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .option-pill.custom {
+            border-color: #334155;
+            color: #94a3b8;
+        }
+
+        .scroll-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scroll-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Edge fade for scrollable containers */
+        .scroll-mask {
+            mask-image: linear-gradient(to right, black 90%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.5em;
+        }
+    </style>
+</head>
+
+<body class="bg-brand-bg text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="p-6 pt-12 pb-4 text-center relative">
+        <h1
+            class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+            Roll-O-Meter
+        </h1>
+        <p class="text-slate-400 text-sm mt-1 uppercase tracking-widest font-semibold">Smart Paper Calc</p>
+
+        <button id="clearAllBtn"
+            class="absolute top-12 right-6 p-2 text-slate-500 hover:text-red-400 transition-colors hidden"
+            title="Limpiar pantalla">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- Results Section -->
+    <main class="flex-grow px-4 pt-8 pb-[50vh] overflow-y-auto comparison-list" id="comparisonList">
+        <!-- Message when empty -->
+        <div id="emptyState" class="flex flex-col items-center justify-center h-64 text-slate-500 opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <p>Agregá productos para comparar</p>
+        </div>
+        <!-- Product Cards go here -->
+    </main>
+
+    <!-- Input Section (Sticky Bottom for One-Hand Use) -->
+    <div id="inputPanel" class="fixed bottom-0 left-0 right-0 glass rounded-t-[3rem] shadow-2xl z-50 input-panel">
+
+        <!-- Toggle Button -->
+        <button id="panelToggle"
+            class="absolute left-1/2 -translate-x-1/2 -top-6 w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all border-4 border-brand-bg">
+            <svg id="toggleIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform duration-500"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div class="max-w-md mx-auto p-4 pt-10 space-y-4">
+
+            <!-- Quick Form Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label
+                        class="text-[10px] text-slate-500 ml-4 mb-1 block uppercase font-bold tracking-widest">Marca</label>
+                    <select id="brandSelect"
+                        class="w-full bg-slate-800 border-none rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-200 font-semibold appearance-none">
+                        <option value="" disabled selected>Seleccionar marca</option>
+                        <option value="Higienol">Higienol</option>
+                        <option value="Elite">Elite</option>
+                        <option value="Felpita">Felpita</option>
+                        <option value="Campanita">Campanita</option>
+                        <option value="Elegante">Elegante</option>
+                        <option value="CUSTOM">OTRA...</option>
+                    </select>
+                </div>
+
+                <div class="col-span-2">
+                    <input type="text" id="itemName" placeholder="¿Cuál marca?"
+                        class="hidden w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all mt-1">
+                </div>
+
+                <div class="col-span-2">
+                    <label
+                        class="text-[10px] text-slate-500 ml-4 mb-1 block uppercase font-bold tracking-widest">Línea</label>
+                    <input type="text" id="itemLine" placeholder="Ej: Premium, Clásico..."
+                        class="w-full bg-slate-800 border-none rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+
+                <div class="col-span-2">
+                    <label class="text-[10px] text-slate-500 ml-4 mb-1 block uppercase font-bold tracking-widest">Precio
+                        ($)</label>
+                    <input type="number" id="itemPrice" placeholder="0.00" inputmode="decimal"
+                        class="w-full bg-slate-800 border-none rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+
+                <div class="col-span-2">
+                    <label class="text-[10px] text-slate-500 ml-4 mb-1 block uppercase font-bold tracking-widest">Pack
+                        (Rollos)</label>
+                    <div class="flex gap-2 overflow-x-auto pb-1 scroll-hide scroll-mask mb-2" id="unitPills">
+                        <button class="option-pill" data-value="1">1</button>
+                        <button class="option-pill" data-value="2">2</button>
+                        <button class="option-pill" data-value="4">4</button>
+                        <button class="option-pill" data-value="6">6</button>
+                        <button class="option-pill" data-value="12">12</button>
+                        <button class="option-pill custom" data-value="CUSTOM">OTRO</button>
+                    </div>
+                    <input type="number" id="itemUnits" placeholder="Cantidad" inputmode="numeric"
+                        class="hidden w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+
+                <div class="col-span-2">
+                    <label class="text-[10px] text-slate-500 ml-4 mb-1 block uppercase font-bold tracking-widest">Metros
+                        por Rollo</label>
+                    <div class="flex gap-2 overflow-x-auto pb-1 scroll-hide scroll-mask mb-2" id="meterPills">
+                        <button class="option-pill" data-value="30">30m</button>
+                        <button class="option-pill" data-value="50">50m</button>
+                        <button class="option-pill" data-value="80">80m</button>
+                        <button class="option-pill custom" data-value="CUSTOM">OTRO</button>
+                    </div>
+                    <input type="number" id="itemMeters" placeholder="Metros" inputmode="numeric"
+                        class="hidden w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                </div>
+
+                <div class="col-span-2 flex items-center justify-between bg-slate-800 rounded-2xl px-5 py-4">
+                    <span class="text-sm font-semibold text-slate-300">Doble Hoja</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="itemDoublePly" class="sr-only peer">
+                        <div
+                            class="w-12 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Star Rating (Opinion) -->
+                <div class="col-span-2">
+                    <label
+                        class="text-[10px] text-slate-500 ml-4 mb-2 block uppercase font-bold tracking-widest text-center">Opinión
+                        / Confort (1-5)</label>
+                    <div id="starRating" class="flex justify-center gap-4 text-3xl">
+                        <button class="star-btn text-slate-700 transition-colors" data-value="1">★</button>
+                        <button class="star-btn text-slate-700 transition-colors" data-value="2">★</button>
+                        <button class="star-btn text-slate-700 transition-colors" data-value="3">★</button>
+                        <button class="star-btn text-slate-700 transition-colors" data-value="4">★</button>
+                        <button class="star-btn text-slate-700 transition-colors" data-value="5">★</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quality Buttons -->
+            <div class="flex gap-2" id="qualitySelector">
+                <button type="button" data-quality="Estandar"
+                    class="flex-1 bg-slate-800 py-3 rounded-xl text-xs font-bold transition-all active-quality">ESTÁNDAR</button>
+                <button type="button" data-quality="Premium"
+                    class="flex-1 bg-slate-800 py-3 rounded-xl text-xs font-bold transition-all">PREMIUM</button>
+                <button type="button" data-quality="Reciclado"
+                    class="flex-1 bg-slate-800 py-3 rounded-xl text-xs font-bold transition-all text-emerald-400">RECICLADO</button>
+            </div>
+
+            <!-- Add / Update Button -->
+            <div class="flex gap-2">
+                <button id="cancelEditBtn"
+                    class="hidden bg-slate-700 hover:bg-slate-600 text-white font-bold py-5 px-6 rounded-2xl text-lg transition-all active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <button id="addBtn"
+                    class="flex-grow bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-5 rounded-2xl text-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" id="btnIcon">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span id="btnText">AGREGAR</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="toast"
+        class="fixed top-8 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full font-bold shadow-xl opacity-0 -translate-y-20 transition-all duration-500 z-[100] pointer-events-none">
+        Agregado correctamente
+    </div>
+
+    <script>
+        // State Storage
+        let products = JSON.parse(localStorage.getItem('rollometer_products')) || [];
+        let editingId = null;
+        let selectedQuality = 'Estándar';
+        let currentRating = 3;
+        let currentUnits = '';
+        let currentMeters = '';
+        let toastTimeout = null;
+
+        // Elements
+        const listContainer = document.getElementById('comparisonList');
+        const emptyState = document.getElementById('emptyState');
+        const inputPanel = document.getElementById('inputPanel');
+        const panelToggle = document.getElementById('panelToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const addBtn = document.getElementById('addBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const btnText = document.getElementById('btnText');
+        const btnIcon = document.getElementById('btnIcon');
+        const qualityButtons = document.querySelectorAll('#qualitySelector button');
+        const starButtons = document.querySelectorAll('.star-btn');
+        const toast = document.getElementById('toast');
+
+        // Inputs
+        const brandSelect = document.getElementById('brandSelect');
+        const nameInp = document.getElementById('itemName');
+        const lineInp = document.getElementById('itemLine');
+        const priceInp = document.getElementById('itemPrice');
+        const unitsInp = document.getElementById('itemUnits');
+        const metersInp = document.getElementById('itemMeters');
+        const doublePlyInp = document.getElementById('itemDoublePly');
+
+        function saveToStorage() {
+            localStorage.setItem('rollometer_products', JSON.stringify(products));
+        }
+
+        // Collapsible Panel Logic
+        panelToggle.addEventListener('click', () => {
+            const isCollapsed = inputPanel.classList.toggle('panel-collapsed');
+            toggleIcon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+
+        // Dropdown Logic
+        brandSelect.addEventListener('change', () => {
+            if (brandSelect.value === 'CUSTOM') {
+                nameInp.classList.remove('hidden');
+                nameInp.focus();
+            } else {
+                nameInp.classList.add('hidden');
+                nameInp.value = brandSelect.value;
+            }
+        });
+
+        // Star Selection
+        function updateStars(val) {
+            currentRating = val;
+            starButtons.forEach(btn => {
+                const btnVal = parseInt(btn.dataset.value);
+                btn.classList.toggle('text-yellow-400', btnVal <= val);
+                btn.classList.toggle('text-slate-700', btnVal > val);
+            });
+        }
+
+        starButtons.forEach(btn => {
+            btn.addEventListener('click', () => updateStars(parseInt(btn.dataset.value)));
+        });
+        updateStars(3); // Default rating
+
+        function setupPills(containerId, inputEl, stateSetter) {
+            const container = document.getElementById(containerId);
+            const pills = container.querySelectorAll('.option-pill');
+
+            pills.forEach(pill => {
+                pill.addEventListener('click', () => {
+                    const value = pill.dataset.value;
+                    pills.forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+
+                    if (value === 'CUSTOM') {
+                        inputEl.classList.remove('hidden');
+                        inputEl.focus();
+                        stateSetter('CUSTOM');
+                    } else {
+                        inputEl.classList.add('hidden');
+                        inputEl.value = value;
+                        stateSetter(value);
+                    }
+                });
+            });
+        }
+
+        setupPills('unitPills', unitsInp, (v) => currentUnits = v);
+        setupPills('meterPills', metersInp, (v) => currentMeters = v);
+
+        // Quality Selection
+        qualityButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                qualityButtons.forEach(b => b.classList.remove('active-quality'));
+                btn.classList.add('active-quality');
+                selectedQuality = btn.dataset.quality;
+            });
+        });
+
+        // Main logic
+        addBtn.addEventListener('click', () => {
+            const finalBrand = brandSelect.value === 'CUSTOM' ? nameInp.value : brandSelect.value;
+            const line = lineInp.value || '#' + (products.length + 1);
+            const price = parseFloat(priceInp.value);
+            const finalUnits = parseInt(currentUnits === 'CUSTOM' ? unitsInp.value : currentUnits);
+            const finalMeters = parseFloat(currentMeters === 'CUSTOM' ? metersInp.value : currentMeters);
+            const isDouble = doublePlyInp.checked;
+
+            if (!finalBrand || isNaN(price) || isNaN(finalUnits) || isNaN(finalMeters)) {
+                showToast('Completá todos los campos obligatorios', 'bg-red-500');
+                return;
+            }
+
+            // Calculations
+            const effectiveMeters = finalUnits * finalMeters * (isDouble ? 1.5 : 1);
+            const costPerMeter = price / effectiveMeters;
+
+            if (editingId) {
+                // Update existing
+                const index = products.findIndex(p => p.id === editingId);
+                if (index !== -1) {
+                    products[index] = {
+                        ...products[index],
+                        name: finalBrand,
+                        line, price, units: finalUnits, meters: finalMeters, isDouble,
+                        quality: selectedQuality,
+                        rating: currentRating,
+                        effectiveMeters, costPerMeter
+                    };
+                    showToast('Producto actualizado', 'bg-emerald-500');
+                }
+                cancelEdit();
+            } else {
+                // Add new
+                const product = {
+                    id: Date.now(),
+                    name: finalBrand, line, price, units: finalUnits, meters: finalMeters, isDouble,
+                    quality: selectedQuality,
+                    rating: currentRating,
+                    effectiveMeters, costPerMeter
+                };
+                products.push(product);
+                showToast('Producto agregado', 'bg-emerald-500');
+            }
+
+            saveToStorage();
+            renderList();
+            clearForm();
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm('¿Eliminar todas las comparaciones?')) {
+                products = [];
+                saveToStorage();
+                renderList();
+                showToast('Pantalla limpia', 'bg-slate-700');
+            }
+        });
+
+        cancelEditBtn.addEventListener('click', cancelEdit);
+
+        function startEdit(id) {
+            const p = products.find(prod => prod.id === id);
+            if (!p) return;
+
+            editingId = id;
+
+            // Set brand dropdown or custom
+            if (Array.from(brandSelect.options).some(opt => opt.value === p.name)) {
+                brandSelect.value = p.name;
+                brandSelect.dispatchEvent(new Event('change'));
+            } else {
+                brandSelect.value = 'CUSTOM';
+                brandSelect.dispatchEvent(new Event('change'));
+                nameInp.value = p.name;
+            }
+
+            lineInp.value = p.line;
+            priceInp.value = p.price;
+
+            // Set units pill or custom
+            const unitPill = Array.from(document.querySelectorAll('#unitPills .option-pill')).find(pill => pill.dataset.value === String(p.units));
+            if (unitPill) {
+                unitPill.click();
+            } else {
+                document.querySelector('#unitPills .custom').click();
+                unitsInp.value = p.units;
+            }
+
+            // Set meters pill or custom
+            const meterPill = Array.from(document.querySelectorAll('#meterPills .option-pill')).find(pill => pill.dataset.value === String(p.meters));
+            if (meterPill) {
+                meterPill.click();
+            } else {
+                document.querySelector('#meterPills .custom').click();
+                metersInp.value = p.meters;
+            }
+
+            doublePlyInp.checked = p.isDouble;
+
+            qualityButtons.forEach(btn => {
+                if (btn.dataset.quality === p.quality) {
+                    btn.click();
+                }
+            });
+
+            updateStars(p.rating || 3);
+
+            // Update UI
+            btnText.innerText = "ACTUALIZAR";
+            btnIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />`;
+            cancelEditBtn.classList.remove('hidden');
+
+            // Open panel if collapsed
+            inputPanel.classList.remove('panel-collapsed');
+            toggleIcon.style.transform = 'rotate(0deg)';
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            btnText.innerText = "AGREGAR";
+            btnIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />`;
+            cancelEditBtn.classList.add('hidden');
+            clearForm();
+        }
+
+        function clearForm() {
+            // Reset pills and dropdown
+            document.querySelectorAll('.option-pill').forEach(p => p.classList.remove('active'));
+            brandSelect.selectedIndex = 0;
+            currentUnits = currentMeters = '';
+
+            nameInp.value = '';
+            nameInp.classList.add('hidden');
+            lineInp.value = '';
+            priceInp.value = '';
+            unitsInp.value = '';
+            unitsInp.classList.add('hidden');
+            metersInp.value = '';
+            metersInp.classList.add('hidden');
+            doublePlyInp.checked = false;
+            updateStars(3);
+        }
+
+        function showToast(msg, bgClass) {
+            if (toastTimeout) clearTimeout(toastTimeout);
+
+            toast.innerText = msg;
+            toast.classList.remove('bg-emerald-500', 'bg-red-500', 'opacity-0', '-translate-y-20');
+            toast.classList.add(bgClass, 'opacity-100', 'translate-y-0');
+
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-20');
+                toastTimeout = null;
+            }, 2500);
+        }
+
+        function deleteItem(id) {
+            products = products.filter(p => p.id !== id);
+            saveToStorage();
+            renderList();
+            showToast('Eliminado', 'bg-slate-700');
+        }
+
+        function renderList() {
+            if (products.length === 0) {
+                emptyState.classList.remove('hidden');
+                clearAllBtn.classList.add('hidden');
+                // Remove existing product cards
+                document.querySelectorAll('.product-card').forEach(el => el.remove());
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Find winner (lowest cost per meter)
+            const minCost = Math.min(...products.map(p => p.costPerMeter));
+
+            // Remove existing product cards
+            document.querySelectorAll('.product-card').forEach(el => el.remove());
+
+            // Build new list
+            products.forEach(p => {
+                const isWinner = p.costPerMeter === minCost;
+                clearAllBtn.classList.remove('hidden');
+                const card = document.createElement('div');
+                card.className = `product-card relative mb-4 p-5 rounded-3xl transition-all border-2 ${isWinner
+                    ? 'bg-slate-900 border-emerald-500/50 animate-glow ring-2 ring-emerald-500/20'
+                    : 'bg-brand-card border-transparent shadow-lg'
+                    }`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-xl text-slate-100">${p.name}</h3>
+                                ${isWinner ? `
+                                    <span class="bg-emerald-500 text-[10px] text-white px-2 py-1 rounded-full animate-pulse-slow flex items-center gap-1 shadow-lg shadow-emerald-500/20">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                                        Ahorro
+                                    </span>
+                                ` : ''}
+                                <span class="bg-slate-700 text-[10px] text-slate-300 px-2 py-0.5 rounded-full">${p.quality}</span>
+                            </div>
+                            <div class="flex gap-0.5 mt-0.5 mb-1">
+                                ${Array(5).fill(0).map((_, i) => `
+                                    <span class="text-[10px] ${i < (p.rating || 0) ? 'text-yellow-400' : 'text-slate-700'}">★</span>
+                                `).join('')}
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5 font-medium uppercase tracking-tight">${p.line}</p>
+                            <p class="text-xs text-slate-500 mt-1">Pack x ${p.units} • ${p.meters}m ${p.isDouble ? ' (Doble)' : ''}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Costo x Metro</p>
+                            <p class="text-2xl font-black ${isWinner ? 'text-emerald-400' : 'text-slate-200'}">
+                                $${p.costPerMeter.toFixed(2).replace('.', ',')}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+                            Total: $${p.price.toFixed(2)}
+                        </div>
+                        <div class="flex gap-4">
+                            <button onclick="startEdit(${p.id})" class="text-slate-600 hover:text-emerald-400 transition-colors p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button onclick="deleteItem(${p.id})" class="text-slate-600 hover:text-red-400 transition-colors p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    ${isWinner ? `
+                        <div class="absolute -top-3 -left-2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                    ` : ''}
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // Initial Render
+        renderList();
+    </script>
+</body>
+
+</html>
+```
