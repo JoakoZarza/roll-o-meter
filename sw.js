@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roll-o-meter-v2';
+const CACHE_NAME = 'roll-o-meter-v3';
 const ASSETS = [
     './',
     './index.html',
