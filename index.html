@@ -96,7 +96,7 @@
 
         /* Collapsible State */
         .input-panel {
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 2s cubic-bezier(0.76, 0, 0.24, 1);
         }
 
         .panel-collapsed {
@@ -686,6 +686,14 @@
 
         // Initial Render
         renderList();
+
+        // Intro Animation: Start open then auto-close as a hint
+        setTimeout(() => {
+            if (!editingId) { // Only auto-close if not currently editing
+                inputPanel.classList.add('panel-collapsed');
+                toggleIcon.style.transform = 'rotate(180deg)';
+            }
+        }, 300);
     </script>
 </body>
 
