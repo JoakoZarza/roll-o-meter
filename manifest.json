@@ -1,0 +1,17 @@
+{
+  "name": "Roll-O-Meter",
+  "short_name": "Roll-O-Meter",
+  "description": "Calculadora de papel higiénico inteligente",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

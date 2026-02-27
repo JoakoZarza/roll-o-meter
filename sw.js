@@ -2,6 +2,7 @@ const CACHE_NAME = 'roll-o-meter-v1';
 const ASSETS = [
     './',
     './index.html',
+    './manifest.json',
     './apple-touch-icon.png',
     './icon-512.png',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap'
